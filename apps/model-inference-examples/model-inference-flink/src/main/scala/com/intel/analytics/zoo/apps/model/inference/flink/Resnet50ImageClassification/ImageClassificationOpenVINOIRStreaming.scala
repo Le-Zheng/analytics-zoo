@@ -14,8 +14,7 @@ import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment, _}
 
 import scala.collection.JavaConverters._
 import scala.io.Source
-
-object ImageClassificationStreaming {
+object ImageClassificationOpenVINOIRStreaming {
 
   def main(args: Array[String]): Unit = {
 
@@ -56,7 +55,6 @@ object ImageClassificationStreaming {
     }
 
     println("params resolved", modelType, checkpointPath, imageDir, classesFile, inputShape.mkString(","), ifReverseInputChannels, meanValues.mkString(","), scale)
-    println("start ImageClassificationStreaming job...")
 
     // Define modelBytes
     val fileSize = new File(checkpointPath).length()
@@ -70,53 +68,62 @@ object ImageClassificationStreaming {
     println("ImageList", fileList)
 
     // Image pre-processing
-    val inputs = fileList.map(file => {
+    val inputImages = fileList.map(file => {
+      // Read image as Array[Byte]
       val imageBytes = FileUtils.readFileToByteArray(file)
+      // Execute image processing with ImageProcessor class
       val imageProcess = new ImageProcessor
-      val res = imageProcess.preProcess(imageBytes, 224, 224, 123, 116, 103, 1.0)
+      val res = imageProcess.processForOpenVINO(imageBytes, 224, 224)
+      // Convert to required [JList[JList[JTensor]]] input
       val input = new JTensor(res, Array(1, 224, 224, 3))
       List(util.Arrays.asList(input)).asJava
     })
+
+    println("start ImageClassificationStreaming job...")
 
     // Getting started the Flink Program
     // Obtain a Flink execution environment
     val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
 
     // Create and transform DataStreams
-    val dataStream: DataStream[JList[JList[JTensor]]] = env.fromCollection(inputs)
+    val dataStream: DataStream[JList[JList[JTensor]]] = env.fromCollection(inputImages)
 
     // Specify the transformation functions
     // First define an Analytics Zoo InferenceModel class to load the pre-trained model. And specify the map fucntion with InferenceModel predict function.
-    val resultStream = dataStream.map(new ModelPredictionMapFunction(modelType, modelBytes, inputShape, ifReverseInputChannels, meanValues, scale))
+    val resultStream = dataStream.map(new ModelPredictionMapFunctionOpenVINOIR(modelType, modelBytes, inputShape, ifReverseInputChannels, meanValues, scale))
 
     // Trigger the program execution on Flink
     env.execute("ImageClassificationStreaming")
 
     // Collect final results, and print predicted classes
     val results = DataStreamUtils.collect(resultStream.javaStream).asScala
-
     println("Printing result ...")
     val labels = Source.fromFile(classesFile).getLines.toList
-    results.foreach((i) => println(labels(i)))
-  }
+//    results.foreach((i) => println(labels(i)))
 
+    results.foreach((i) => println("The image " + i + " prediction result is: "+labels(i)))
+  }
 }
 
-class ModelPredictionMapFunction(modelType: String, modelBytes: Array[Byte], inputShape: Array[Int], ifReverseInputChannels: Boolean, meanValues: Array[Float], scale: Float) extends RichMapFunction[JList[JList[JTensor]], Int] {
-  var resnet50InferenceModel: Resnet50InferenceModel = _
+// Define map fucntion class which extends RichMapFunction
+class ModelPredictionMapFunctionOpenVINOIR(modelType: String, checkpointBytes: Array[Byte], inputShape: Array[Int], ifReverseInputChannels: Boolean, meanValues: Array[Float], scale: Float) extends RichMapFunction[JList[JList[JTensor]], Int] {
+  var resnet50InferenceModelOpenVINOIR: Resnet50OpenVINOIRInferenceModel = _
 
   override def open(parameters: Configuration): Unit = {
-    resnet50InferenceModel = new Resnet50InferenceModel(1, modelType, modelBytes, inputShape, ifReverseInputChannels, meanValues, scale)
+    resnet50InferenceModelOpenVINOIR = new Resnet50OpenVINOIRInferenceModel(1, modelType, checkpointBytes, inputShape, ifReverseInputChannels, meanValues, scale)
   }
 
   override def close(): Unit = {
-    resnet50InferenceModel.doRelease()
+    resnet50InferenceModelOpenVINOIR.doRelease()
   }
 
+  // Define map function
   override def map(in: JList[JList[JTensor]]): (Int) = {
-    val outputData = resnet50InferenceModel.doPredict(in).get(0).get(0).getData
+    val outputData = resnet50InferenceModelOpenVINOIR.doPredict(in).get(0).get(0).getData
+    println("outputData", outputData)
     val max: Float = outputData.max
     val index = outputData.indexOf(max)
     (index)
   }
 }
+
