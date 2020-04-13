@@ -18,7 +18,7 @@ Before you start this guide, make sure a Databricks workspace is ready and a clu
 
 1. Install libraries. Right-click the Workspace folder. Select **Create > Library**.
 
-<img src="analytics-zoo/docs/docs/Image/PlatformGuide/create-library.png" >
+![Pic1](../Image/PlatformGuide/create-library.png) 
 
 2. Install Analytics Zoo python environment using PyPI. 
 
