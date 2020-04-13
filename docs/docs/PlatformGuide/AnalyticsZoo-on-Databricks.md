@@ -22,11 +22,11 @@ Before you start this guide, make sure a Databricks workspace is ready and a clu
 
 2. Install Analytics Zoo python environment using PyPI. 
 
-<img src="../Image/PlatformGuide/analytics-zoo-PyPI.PNG" width="380">
+![Pic2](../Image/PlatformGuide/analytics-zoo-PyPI.PNG | width=380)
 
 3. Install Analytics Zoo prebuilt jar package. Download Analytics Zoo prebuilt release package from the [Release Page](https://analytics-zoo.github.io/master/#release-download/). Please note that you should choose the same spark version of package as your Databricks runtime version. Unzip it. Find the jar named "analytics-zoo-bigdl_*-spark_*-jar-with-dependencies.jar" in the lib directory. Drop the jar on Databricks.
 
-<img src="../Image/PlatformGuide/analytics-zoo-jar.PNG" width="600">
+![Pic3](../Image/PlatformGuide/analytics-zoo-jar.PNG | width=380)
 
 4. Make sure the jar file and analytics-zoo installed using PyPI are installed on all clusters. In **Libraries** tab of your cluster, check installed libraries and click “Install automatically on all clusters” option in **Admin Settings**.
 
