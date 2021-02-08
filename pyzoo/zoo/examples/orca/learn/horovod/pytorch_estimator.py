@@ -140,6 +140,12 @@ if __name__ == "__main__":
             parser.print_help()
             parser.error('k8s_master, container_image,'
                          'k8s_driver_host/port are required not to be empty')
+        try:
+            port = int(args.k8s_driver_port)
+            if port < 1 or port > 65535:
+                raise ValueError
+        except ValueError:
+            print("Input port number is NOT VALID.")
         init_orca_context(cluster_mode="k8s", master=args.k8s_master,
                           container_image=args.container_image,
                           num_nodes=args.num_nodes, cores=args.cores,
